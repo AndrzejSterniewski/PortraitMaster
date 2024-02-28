@@ -19,33 +19,35 @@ exports.add = async (req, res) => {
   }
 
   try {
-    const { title, author, email } = req.fields;
+    let { title, author, email } = req.fields;
+    email = validateEmail(email);
     const file = req.files.file;
 
-
     // task - validation title and author length
-    if (title.length <= 25 && author.length <= 50) {
+    // if (title.length <= 25 && author.length <= 50) {}
 
-      if (title && author && email && file) { // if fields are not empty...
+    if (title && author && email && file) { // if fields are not empty...
 
-        const fileName = file.path.split('/').slice(-1)[0]; // cut only filename from full path, e.g. C:/test/abc.jpg -> abc.jpg
-        const fileExt = fileName.split('.').slice(-1)[0];
+      const fileName = file.path.split('/').slice(-1)[0]; // cut only filename from full path, e.g. C:/test/abc.jpg -> abc.jpg
+      const fileExt = fileName.split('.').slice(-1)[0];
 
-        // task - validation filetype
-        if (fileExt === 'jpg' || fileExt === 'gif' || fileExt === 'png') {
-          const newPhoto = new Photo({ title, author, email, src: fileName, votes: 0 });
-          await newPhoto.save(); // ...save new photo in DB
-          res.json(newPhoto);
-        } else {
-          throw new Error('Wrong type of file. Please upload an image file (jpg/gif/png).');
-        }
+      // task - validation filetype
+      if (fileExt === 'jpg' || fileExt === 'gif' || fileExt === 'png') {
+        const newPhoto = new Photo({
+          title,
+          author,
+          email,
+          src: fileName,
+          votes: 0
+        });
+        await newPhoto.save(); // ...save new photo in DB
+        res.json(newPhoto);
       } else {
-        throw new Error('Wrong input!');
+        throw new Error('Wrong type of file. Please upload an image file (jpg/gif/png).');
       }
     } else {
-      throw new Error('Max tile length is 25, max author length is 50');
+      throw new Error('Wrong input!');
     }
-
   } catch (err) {
     res.status(500).json(err);
   }
