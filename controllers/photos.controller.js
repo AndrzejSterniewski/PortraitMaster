@@ -77,25 +77,13 @@ exports.loadAll = async (req, res) => {
 
 /****** VOTE FOR PHOTO ********/
 
-exports.vote = async (req, res) => {
-
+const addVote = async (req, res) => {
   try {
     const photoToUpdate = await Photo.findOne({ _id: req.params.id });
-    if (!photoToUpdate) res.status(404).json({ message: 'Not found' });
-    else {
-
-      // tu sprawdzamy
-      // to daje adres ip klienta
-      req.clientIp;
-      const voter = await Voter.findOne({ user: req.clientIp });
-      if (!voter) {
-        const voter = new Voter({ user: req.clientIp, votes: [photoToUpdate._id] });
-        await voter.save();
-      } else {
-        // sprawdzamy czy voter głosował już na to zdjęcie,jeśli tak to return status
-        // a jeśli głosował to dopisujemy że głosował na nowe zdjecie
-
-      }
+    if (!photoToUpdate) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    } else {
       photoToUpdate.votes++;
       photoToUpdate.save();
       res.send({ message: 'OK' });
@@ -103,5 +91,29 @@ exports.vote = async (req, res) => {
   } catch (err) {
     res.status(500).json(err);
   }
+};
 
+exports.vote = async (req, res) => {
+
+  try {
+    req.clientIp;
+    const voter = await Voter.findOne({ user: req.clientIp });
+    if (!voter) {
+      const voter = new Voter({ user: req.clientIp, votes: [photoToUpdate._id] });
+      await voter.save();
+      await addVote(res, photoToUpdate._id);
+    }
+    // check if voter already voted for this picture, if not add this vote to array of votes
+    else if (!voter.votes.includes(photoToUpdate._id)) {
+      voter.votes.push(photoToUpdate._id);
+      await voter.save();
+      await addVote(res, photoToUpdate._id);
+    }
+    // if voter has already voted for picture, return status
+    else {
+      res.status(400).json({ message: 'You\'ve already voted for this photo.' });
+    }
+  } catch (err) {
+    res.status(500).json(err);
+  }
 };
