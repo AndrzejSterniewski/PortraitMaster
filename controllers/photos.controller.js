@@ -16,13 +16,7 @@ exports.add = async (req, res) => {
 
   const validateEmail = (emailInput) => {
     const regex = new RegExp(/^[a-zA-Z0–9._-]+@[a-zA-Z0–9.-]+\.[a-zA-Z]{2,4}$/);
-    const result = regex.test(emailInput);
-    if (result) {
-      return emailInput;
-    }
-    else {
-      throw new Error('Wrong email!');
-    }
+    return regex.test(emailInput);
   };
 
   try {
@@ -52,10 +46,10 @@ exports.add = async (req, res) => {
         await newPhoto.save(); // ...save new photo in DB
         res.json(newPhoto);
       } else {
-        throw new Error('Wrong type of file. Please upload an image file (jpg/gif/png).');
+        return res.status(400).json({ message: 'Wrong type of file. Please upload an image file (jpg/gif/png).' });
       }
     } else {
-      throw new Error('Wrong input!');
+      return res.status(400).json({ message: 'wrong input' });
     }
   } catch (err) {
     res.status(500).json(err);
@@ -77,18 +71,13 @@ exports.loadAll = async (req, res) => {
 
 /****** VOTE FOR PHOTO ********/
 
-const addVote = async (req, res) => {
+const addVote = async (res, photoToUpdate) => {
   try {
-    const photoToUpdate = await Photo.findOne({ _id: req.params.id });
-    if (!photoToUpdate) {
-      res.status(404).json({ message: 'Not found' });
-      return;
-    } else {
-      photoToUpdate.votes++;
-      photoToUpdate.save();
-      res.send({ message: 'OK' });
-    }
+    photoToUpdate.votes++;
+    await photoToUpdate.save();
+    res.send({ message: 'OK' });
   } catch (err) {
+    console.log(err);
     res.status(500).json(err);
   }
 };
@@ -96,24 +85,29 @@ const addVote = async (req, res) => {
 exports.vote = async (req, res) => {
 
   try {
-    req.clientIp;
-    const voter = await Voter.findOne({ user: req.clientIp });
+    const voter = await Voter.findOne({ user: req.ip });
+    const photoToUpdate = await Photo.findOne({ _id: req.params.id });
+    if (!photoToUpdate) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    };
     if (!voter) {
-      const voter = new Voter({ user: req.clientIp, votes: [photoToUpdate._id] });
+      const voter = new Voter({ user: req.ip, votes: [photoToUpdate._id] });
       await voter.save();
-      await addVote(res, photoToUpdate._id);
+      await addVote(res, photoToUpdate);
     }
     // check if voter already voted for this picture, if not add this vote to array of votes
     else if (!voter.votes.includes(photoToUpdate._id)) {
       voter.votes.push(photoToUpdate._id);
       await voter.save();
-      await addVote(res, photoToUpdate._id);
+      await addVote(res, photoToUpdate);
     }
     // if voter has already voted for picture, return status
     else {
       res.status(400).json({ message: 'You\'ve already voted for this photo.' });
     }
   } catch (err) {
+    console.log(err);
     res.status(500).json(err);
   }
 };
